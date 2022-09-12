@@ -1,0 +1,2 @@
+# bus-GA
+Este repositório contém as ferramentas utilizadas no artigo "EVOLUINDO RESILIÊNCIA EM ROTAS DE ÔNIBUS: PROPOSTA DE UM MÉTODO PARA A MAXIMIZAÇÃO DE ACESSIBILIDADE EM CENÁRIOS DE INCERTEZA POR MEIO DE ALGORITMO GENÉTICO". O código associado às funções do artigo pode ser encontrado na pasta tools, principalmente no módulo busGA.py, contudo o código ainda não está formatado para ser de simples compreensão. Em breve será disponibilizado um tutorial que demonstra o uso dessas funções.
