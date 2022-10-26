@@ -2,6 +2,7 @@ import osmnx as ox
 import networkx as nx
 import gtfs_kit as gk
 import numpy as np
+from math import radians, degrees, sin, cos, asin, acos, sqrt
 
 def convert_time_string(df,cols=['departure_time','arrival_time']):
     df=df.copy()
@@ -38,10 +39,10 @@ def get_complete_gtfs_database(gtfs_path,start=6*3600,stop=9*3600,
 
 def no_oulier_mean(x):
     x=np.array(x)
-    std=np.std(x)
-    mean=np.mean(x)
-    x=x[(x>=mean-1.5*std)&
-        (x<=mean+1.5*std)]
+    inter_quartile_dist=np.percentile(x,75)-np.percentile(x,25)
+    median=np.median(x)
+    x=x[(x>=median-1.5*inter_quartile_dist)&
+        (x<=median+1.5*inter_quartile_dist)]
     filt_mean=(np.mean(x) if len(x)>0 else mean)
     return filt_mean
 
@@ -88,8 +89,6 @@ def get_transit_lines_as_graphs(gtfs_path,start=6*3600,stop=9*3600,
         lname=temp.iloc[0]['route_long_name']
         color=temp.iloc[0]['route_color']
         mode=temp.iloc[0]['route_type']
-        if mode==1:
-            print(len(temp))
         temp=temp.sort_values(['trip_id','stop_sequence'])
         ns=temp['stop_id'].unique()
         nodes={}
@@ -179,7 +178,13 @@ def get_transit_lines_as_graphs(gtfs_path,start=6*3600,stop=9*3600,
         lines.append(L)
     return lines
 
-def get_closest_nodes(G,subs):
+def great_circle(lon1, lat1, lon2, lat2):
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    return 6.371e6 * (
+        acos(sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lon1 - lon2))
+    )
+
+def get_closest_nodes(G,subs,tol=100):
     #can two points have the same node? 
     node_names={}
     X,Y=[],[]
@@ -190,10 +195,18 @@ def get_closest_nodes(G,subs):
             x0,y0=sub.nodes[node]['x'],sub.nodes[node]['y']
             X.append(x0)
             Y.append(y0)
-    ns=ox.get_nearest_nodes(G,np.array(X),np.array(Y),method='balltree')
+    ns=ox.get_nearest_nodes(G,np.array(X),np.array(Y),
+                              method='balltree')
     for sub,pos0,pos1 in zip(subs,subs_coords[:-1],subs_coords[1:]):
-#         print(len(ns[pos0:pos1]),len(sub))
-        node_names={node:name for node,name in zip(sub.nodes,ns[pos0:pos1])}
+    #         print(len(ns[pos0:pos1]),len(sub))
+        node_names = {}
+        for node,name in zip(sub.nodes,ns[pos0:pos1]):
+            d = great_circle(G.nodes[name]['x'],G.nodes[name]['y'],
+                            sub.nodes[node]['x'],sub.nodes[node]['y'])
+            if d<=tol:
+                node_names[node] = name
+            else:
+                node_names[node] = None
         nx.set_node_attributes(sub,node_names,'attached')
     return None
 
